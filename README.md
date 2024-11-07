@@ -1,6 +1,6 @@
 # MultiChain Abstract Account
 
-This is an experimental repository that intents to create a MultiChain Abstract Account with the following capabilities:
+This is an experimental repository that intents to create a MultiChain Abstract Account using Near Chain Signatures with the following capabilities:
 
 - User can authorize transaction on the account using any [Auth Method](#auth-methods)
   - If two auth methods are added to one account, they can be used interchangeably
@@ -40,98 +40,118 @@ This section describes the parts necessary to implement this project
 
 This is the EntryPoint contract that stores the Accounts Mapping and control the accounts keys. Bellow you can find a description of the proposed interface
 
-```rust
-// Validate if all OIDC providers have this properties
-struct OIDC {
-    issuer: String,
-    client_id: String,
-    email: String
+```typescript
+interface OIDC {
+  issuer: string;
+  clientId: string;
+  email: string;
 }
 
-struct WebAuthn {
-    key_id: String,
-    public_key: String
+interface WebAuthn {
+  keyId: string;
+  publicKey: string;
 }
 
 // Can be extended to support more auth methods
-enum AuthPath {
-    PubKey(String), // Wallet authentication
-    WebAuthn(WebAuthn), // Passkey authentication
-    OIDC(OIDC) // Social authentication (e.g: Google, Facebook, Apple)
-    Account(AccountId) // Near Account authentication
+type AuthPath = 
+  | { type: "PubKey", value: string } // Wallet authentication
+  | { type: "WebAuthn", value: WebAuthn } // Passkey authentication 
+  | { type: "OIDC", value: OIDC } // Social authentication (e.g: Google, Facebook, Apple)
+  | { type: "Account", value: string }; // Near Account authentication
+
+interface Account {
+  authPaths: AuthPath[];
+  nonce: number;
 }
 
-struct Account {
-    auth_paths: Vec<AuthPath>,
-    nonce: u64,
+// Should implement the Storage Management NEP (https://nomicon.io/Standards/StorageManagement)
+interface RootDerivationContract {
+  accounts: Map<string, Account>; // AccountId => Account
+  authContracts: Map<string, AccountId> // AuthMethodId => AuthMethodContractAddress
 }
 
-// Should implement the (Storage Management NEP)[https://nomicon.io/Standards/StorageManagement]
-struct RootDerivationContract {
-    accounts: HashMap<String, Account> // AccountId => Account
+type Action = 
+  | { type: "AddKey", authPath: AuthPath }
+  | { type: "RemoveKey", authPath: AuthPath }
+  | { 
+      type: "CallChainSig", 
+      args: {
+        payload: Uint8Array;
+        keyVersion: Uint8Array;
+        path: string;
+      }
+    };
+
+interface Transaction {
+  nonce: number;
+  actions: Action[];
 }
 
-struct Action {
-  AddKey({
-    auth_path: AuthPath
-  })
-  RemoveKey({
-    auth_path: AuthPath
-  })
-  CallChainSig({
-    args: { 
-      payload: [u8, 32],
-      key_version: [u8, 32],
-      path: String
-    }
-  })
+interface ExecuteArgs {
+  message: string,
+  signature: string, 
+  transaction: Transaction, 
+  authPath: AuthPath, 
+  authTarget: AuthPath
 }
 
-// TODO: Decide if message signed will be the following object or the hash of the
-struct Transaction {
-  nonce: u64,
-  actions: Vec<Action> 
-}
-
-impl RootDerivationContract {
-  #[public call]
-  pub execute(&mut self, message: String, signature: String, transaction: Transaction, auth_path: AuthPath, auth_target: AuthPath) {
+class RootDerivationContract {
+  /**
+   * @public
+   * @call
+   */
+  async execute(executeArgs: ExecuteArgs): Promise<void> {
     /**
-    1. Find account based on auth_path
-    2. Validate account nonce
-    3. Validate if auth_target exist on account
-    4. Validate if message contains the hash of the transaction
-      - Even though this logic it's method specific it should not be done on the auth_contract because the auth_contract should only validate the signature and not security details of our abstract account
-    5. Validate if message => signature using provided auth_path (cross-contract call to corresponding auth_contract)
-    6. Call auth_callback with auth_contract result
-    **/
+     * 1. Find account based on authPath
+     * 2. Validate account.nonce === transaction.nonce
+     * 3. Validate if authTarget exist on account
+     * 4. Validate if message contains the hash of the transaction
+     *   - Even though this logic it's auth method specific it should not be done on the authContract 
+     *     because the authContract should only validate the signature and not security details of our abstract account
+     *   - The message should contains the transaction hash to: avoid replay attacks (tx includes the nonce), guarantee that even if the message it's intercepted by a malicious actor it can only be used to what's intended for
+     * 5. Validate if message => signature using provided authPath (cross-contract call to corresponding authContract)
+     * 6. Call executeCallback with authContract result
+     */
   }
 
-  pub execute_callback(&self) {
-    // 1. If auth_contract result === true, execute the actions on transaction.actions
-  } // Execute transaction
+  async executeCallback(): Promise<void> {
+    // 1. If authContract result === true, execute the actions on transaction.actions
+  }
 
   // Methods that can be called by execute
-  #[private]
-  pub add_auth_path(&mut self, auth_path: AuthPath) {}
-  #[private]
-  pub remove_auth_path(&mut self, auth_path: AuthPath) {}
-  #[private]
-  pub call_chain_sig(&mut self, auth_target: AuthPath, actions: Vec<Actions>) {
-    // Call ChainSig contract using auth_target as the path
+  private async addAuthPath(authPath: AuthPath): Promise<void> {}
+  private async removeAuthPath(authPath: AuthPath): Promise<void> {}
+  private async callChainSig(authTarget: AuthPath, actions: Action[]): Promise<void> {
+    // Call ChainSig contract using authTarget as the path
   }
 
-  #[public view]
-  pub find_account(&self, auth_path: AuthPath) -> Account {}
-  #[public view]
-  pub derive_key_from_path(&self, auth_path: AuthPath) -> String {}
-}
+  /**
+   * @public
+   * @view
+   */
+  findAccount(authPath: AuthPath): Account | null {
+    return null;
+  }
 
+  /**
+   * @public
+   * @view
+   */
+  deriveKeyFromPath(authPath: AuthPath): string {
+    return "";
+  }
+}
 ```
 
 ### AuthContracts
 
-Those are individual contract for each type of authentication we want to support for the accounts. This includes
+Those are stateless contracts used to validate each type of [Auth Method](#auth-methods). 
+
+Reasons to deploy them individually instead of implement inside the RootDerivationContract: 
+
+- Reusable by other Near Contracts
+- Upgradable
+- Don't take space on account management contract
 
 #### OIDC Auth Contract
 
@@ -157,54 +177,88 @@ class OIDCAuthContract {
 
 ```typescript
 class WebAuthnAuthContract {
-  auth(message: String, signature: String, publicKey: String): boolean {}
+  auth(message: String, signature: String, publicKey: String): boolean {
+    // Validate P256 signature
+  }
 }
-
 ```
 
 #### Ethereum Auth Contract
+
+```typescript
+class EthereumAuthContract {
+  auth(message: String, signature: String, address: String): boolean {
+    // Validate secp256k1 signature
+  }
+}
+```
+
 #### Solana Auth Contract
 
+```typescript
+class SolanaAuthContract {
+  auth(message: String, signature: String, publicKey: String): boolean {
+    // Validate ed25519 signature
+  }
+}
+```
 
 ### Oracle Contracts
 
-Those contracts are necessary to fetch and store the current OIDC provider public key as they are rotated frequently
+Contract to fetch and store the OIDC provider public key on chain to be used by OIDCAuthContract to validate the validity of the token. 
+
+Those contracts should be able to be updated permission less: 
+
+- Decentralized network of oracles
+- ZK when updating key
+
+DEMO: For demo purpose a centralized "trusted" server will be used
 
 ### Relayer
 
-REST server that receives a payload, build the NearTx and call the RootDerivationContract sponsoring the gas
+Relayer REST server: 
 
-It enables users to use any blockchain without a wallet, simply by signing a payload with his OIDC token
+- `/sign-near-transaction`
+  - Args: 
+    - receiver_id: account management contract address (RootDerivationContract)
+    - execute_args: ExecuteArgs
+  - Build Near Transaction, sign sponsoring the gas, call RPC
+
+Enables blockchain transactions without wallet
 
 ### OIDC Server (Optional)
 
-We are not 100% sure if OIDC token generation on client side is secure so we will initially have a server that has the clientSecret and request the token. 
+Currently we are not sure if the token generated on Client Side it's 100% authentic, so we will introduce this server to use the Client Secret to request the token. 
 
-Obs: The user still able to submit the client token to auth on the account without the server
+Obs: 
+- User still able to call the contract without the server, using OIDC token generation on client flow
+- If we come to the conclusion that the Client Token it's authentic and valid we can remove this server
 
 ### ChainSignatures Contract
 
 View [ChainSignatures MPC](https://github.com/near/mpc)
 
-This contract allow contracts to control private keys, it has a single method that matter for us: 
+- Allow SmartContracts to control keys
+- Enable predictable address derivation. 
+- Expose the `sign` method
 
 ```typescript
 type Signature {
-  r: String
-  s: String
-  v: String
+  r: string
+  s: string
+  v: number
 }
 
 sign(args: {
-  key_type: Number, 
-  payload: Uint8Array(32),
-  path: String
+  key_version: number,
+  payload: Uint8Array, // 32 bytes
+  path: string
 }): Signature
 ```
 
 ## Issues
 
-- It's an account system inside Near, so it interacting with other contracts that uses predecessor_id won't be natural as the predecessor_id will always be the RootDerivationContract Id and not the AccountId. 
-  - The solution it's control a Near account using ChainSig contract (slower than native account because requires a call to ChainSig)
-    - More expensive it's relative because if we deploy one AA Smart Contract for each account it cost 1N/100kB (stateless basic contract cost 2N, see (WebAuthn Contract)[https://testnet.nearblocks.io/address/felipe-webauthn.testnet], it means the user has to performs around 4000 ChaiSig to make the cost even)
-- The APIs to talk with this contract are different from using a native account on Near
+- Since this is an account system within NEAR, interactions with contracts that rely on `predecessor_id` will be less intuitive, as the `predecessor_id` will always be the RootDerivationContract ID rather than the actual AccountId.
+  - This can be addressed by controlling a NEAR account through the ChainSig contract, though this adds some latency due to the extra contract call
+    - The cost implications are relative - deploying one AA Smart Contract per account costs 1N/100kB (compared to 2N for a basic stateless contract like the [WebAuthn Contract](https://testnet.nearblocks.io/address/felipe-webauthn.testnet)). A user would need to make approximately 4000 ChainSig calls before the costs equalize.
+- The contract APIs differ from those used with native NEAR accounts, requiring adaptation
