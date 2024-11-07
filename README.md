@@ -15,11 +15,11 @@ This is an experimental repository that creates a MultiChain Abstract Account us
 
 ## Auth Methods
 
-- [OIDC Token](#oidc-token) (Google, Facebook, Apple)
-- [Passkeys](#passkeys)
-- [Wallets](#wallets) (EVM, Solana, Near)
-- [Near Account](#near-account)
-- [Phone Number](#phone-number)
+- [OIDC Token](#oidc-auth-contract) (Google, Facebook, Apple)
+- [Passkeys](#webauthn-auth-contract)
+- [Wallets](#ethereum-auth-contract) (EVM, Solana, Near)
+- [Near Account](#rootderivationcontract)
+- [Phone Number](#phone-recovery)
 
 ## Master Recovery
 
