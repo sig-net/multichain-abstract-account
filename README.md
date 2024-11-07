@@ -305,3 +305,8 @@ sign(args: {
     - To avoid the latency and extra costs, users can grant dApps a FunctionCall access key to the Near controlled account
 - The contract APIs differ from those used with native NEAR accounts, requiring adaptation
   - Build a wallet interface following the wallet-selector standards
+ 
+## Diagrams
+
+![Screenshot 2024-11-07 at 22 35 42](https://github.com/user-attachments/assets/10e8aaae-cd69-49d5-a545-509c5e5e8e23)
+![Screenshot 2024-11-07 at 22 35 38](https://github.com/user-attachments/assets/72f20c92-b921-4e1a-9482-f5b76d8a7d47)
