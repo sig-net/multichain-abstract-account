@@ -1,44 +1,53 @@
 # MultiChain Abstract Account
 
-This is an experimental repository that intents to create a MultiChain Abstract Account using Near Chain Signatures with the following capabilities:
+This is an experimental repository that creates a MultiChain Abstract Account using NEAR Chain Signatures with the following capabilities:
 
-- User can authorize transaction on the account using any [Auth Method](#auth-methods)
-  - If two auth methods are added to one account, they can be used interchangeably
-- User don't need a Wallet to interact with the Account
-- User can add/remove [Auth Methods](#auth-methods)
-- User can have multiple accounts per [Auth Method](#auth-methods) and each account is independent
-- User have an implicit account in any chain supported by the [ChainSignatures MPC](https://github.com/near/mpc) and Near for each [Auth Method](#auth-methods)
-- User can recover an AccountId by providing ownership of one [Auth Method](#auth-methods) available on the account
-  - Master Recovery: Email, Phone
+- Users can authorize transactions on their account using any [Auth Method](#auth-methods)
+  - Multiple auth methods on one account can be used interchangeably
+- No wallet is required to interact with the account
+- Users can add and remove [Auth Methods](#auth-methods)
+- Multiple independent accounts can be created per [Auth Method](#auth-methods)
+- Each [Auth Method](#auth-methods) provides an implicit account on any chain supported by [ChainSignatures MPC](https://github.com/near/mpc) and NEAR
+- Account recovery is possible by proving ownership of any [Auth Method](#auth-methods) associated with the account
+  - Master Recovery Methods:
+    - Email
+    - Phone
 
 ## Auth Methods
 
 - [OIDC Token](#oidc-token) (Google, Facebook, Apple)
-- [Phone Number](#phone-number)
 - [Passkeys](#passkeys)
 - [Wallets](#wallets) (EVM, Solana, Near)
 - [Near Account](#near-account)
+- [Phone Number](#phone-number)
 
 ## Master Recovery
 
-- Email: if the account has an OIDC with Email the user should be able to authorize transaction on the account by sending an email with a transaction to it, even if the email method is not previously added.
-  - Why email?
-    - The user can only have the OIDC if he has the email
-    - The email is text-based, it means no website can trick the user
-    - The email can be easily validated by the DKIM
-    - THe email is controlled only by the user and can only be sent by the user like a wallet
-  - View (Email ZK)[https://prove.email/]
-  - Why we need this? 
-    - If the account can only be controlled by OIDC token the user can be locked out/censored of the account if the website with ClientID shutdown or acts malicious, so the user need a permission-less method to authenticate on his own account
-- Phone: [TODO: investigate if it's possible to do the same for phone as email]
+### Email Recovery
+If an account has an OIDC authentication method with an associated email address, the user can authorize transactions by sending a signed email containing the transaction details, even if email authentication was not previously enabled.
+
+#### Why Email?
+- Email ownership is required for OIDC authentication
+- Email is text-based, making it resistant to blind signing attacks
+  - When signing a transaction with OIDC, users cannot verify what they are signing unless the dApp displays the transaction details
+- Emails can be cryptographically verified using DKIM signatures
+- Like a crypto wallet, email accounts are under sole user control
+
+View: [Email ZK](https://prove.email/)
+
+#### Importance
+Email recovery provides a permissionless backup authentication method. This prevents users from being locked out of their accounts if:
+- The OIDC provider's service is discontinued
+- The client ID website is discontinued
+
+### Phone Recovery
+*TODO: Investigate feasibility of implementing similar recovery mechanism using phone numbers*
 
 ## Infrastructure
 
-This section describes the parts necessary to implement this project
-
 ### RootDerivationContract
 
-This is the EntryPoint contract that stores the Accounts Mapping and control the accounts keys. Bellow you can find a description of the proposed interface
+This is the EntryPoint contract that manages account storage and key control. It serves as the main interface for account operations, including authentication method management and transaction execution. Below is the proposed interface specification:
 
 ```typescript
 interface OIDC {
@@ -89,7 +98,7 @@ interface Transaction {
 
 interface ExecuteArgs {
   message: string,
-  signature: string, 
+  messageSignature: string, 
   transaction: Transaction, 
   authPath: AuthPath, 
   authTarget: AuthPath
@@ -103,13 +112,14 @@ class RootDerivationContract {
   async execute(executeArgs: ExecuteArgs): Promise<void> {
     /**
      * 1. Find account based on authPath
-     * 2. Validate account.nonce === transaction.nonce
-     * 3. Validate if authTarget exist on account
-     * 4. Validate if message contains the hash of the transaction
-     *   - Even though this logic it's auth method specific it should not be done on the authContract 
-     *     because the authContract should only validate the signature and not security details of our abstract account
-     *   - The message should contains the transaction hash to: avoid replay attacks (tx includes the nonce), guarantee that even if the message it's intercepted by a malicious actor it can only be used to what's intended for
-     * 5. Validate if message => signature using provided authPath (cross-contract call to corresponding authContract)
+     * 2. Validate that account.nonce matches transaction.nonce
+     * 3. Validate that authTarget exists on the account
+     * 4. Validate that message contains the transaction hash
+     *   - Although this logic is auth method specific, it should not be handled by the authContract
+     *     since authContract should only validate signatures, not security details of our abstract account
+     *   - The message must contain the transaction hash to prevent replay attacks (via nonce) and ensure
+     *     that messages can only be used for their intended purpose
+     * 5. Validate messageSignature using provided authPath (cross-contract call to corresponding authContract)
      * 6. Call executeCallback with authContract result
      */
   }
@@ -126,32 +136,59 @@ class RootDerivationContract {
   }
 
   /**
+   * Expensive method as it requires iterating over the account map to find the AuthPath, but should be called rarely since users can provide the accountId for a constant time query
+   * 
    * @public
    * @view
    */
-  findAccount(authPath: AuthPath): Account | null {
-    return null;
-  }
+  findAccountByAuthPath(authPath: AuthPath): Account | null {}
 
   /**
    * @public
    * @view
    */
-  deriveKeyFromPath(authPath: AuthPath): string {
-    return "";
+  findAccountByAccountId(accountId: string): Account | null {}
+
+  /**
+   * @public
+   * @view
+   */
+  deriveKeyFromPath(authPath: AuthPath): string {}
+}
+```
+
+#### Auth Paths
+
+Auth Paths act as public keys that are used to authenticate transactions and derive account paths. For example:
+
+```typescript
+const authPath: AuthPath = {
+  type: "OIDC", 
+  value: {
+    issuer: "google", 
+    clientId: "l2109ufdshf8sdhjf", 
+    email: "test@gmail.com"
   }
 }
+
+const account = contract.findAccountByAccountId('test@gmail.com')
+if (!account.authPaths.includes(authPath)) {
+  throw new Error(`authPath: ${JSON.stringify(authPath)} is not authorized on this account`) 
+}
+
+const derivedPath = contract.deriveKeyFromPath(authPath)
+console.log(derivedPath) // "google,l2109ufdshf8sdhjf,test@gmail.com"
 ```
 
 ### AuthContracts
 
-Those are stateless contracts used to validate each type of [Auth Method](#auth-methods). 
+Stateless contracts used to validate each type of [Auth Method](#auth-methods).
 
-Reasons to deploy them individually instead of implement inside the RootDerivationContract: 
+Reasons to deploy them as individual contracts rather than implementing them inside the RootDerivationContract:
 
-- Reusable by other Near Contracts
-- Upgradable
-- Don't take space on account management contract
+- Reusable across other NEAR contracts
+- Independently upgradeable
+- Reduced storage on the account management contract
 
 #### OIDC Auth Contract
 
@@ -166,9 +203,9 @@ type Provider = 'google' | 'facebook' | 'apple'
 
 class OIDCAuthContract {
   auth(token: OIDCToken, tokenSignature: string, provider: Provider): boolean {
-    // 1. Fetches the public key of the provider from the oracle contract
-    // 2. Validate if the token was signed by the providerPublicKey
-    // 3. Return the result
+    // 1. Fetch the provider's public key from the oracle contract
+    // 2. Validate that the token was signed by the provider's public key
+    // 3. Return the validation result
   }
 }
 ```
@@ -205,34 +242,37 @@ class SolanaAuthContract {
 
 ### Oracle Contracts
 
-Contract to fetch and store the OIDC provider public key on chain to be used by OIDCAuthContract to validate the validity of the token. 
+Contract that fetches and stores OIDC provider public keys on-chain, which are used by OIDCAuthContract to validate token authenticity.
 
-Those contracts should be able to be updated permission less: 
+These contracts should support permissionless updates through:
 
-- Decentralized network of oracles
-- ZK when updating key
+- A decentralized network of oracles
+- Zero-knowledge proofs when updating keys
 
-DEMO: For demo purpose a centralized "trusted" server will be used
+Note: For demo purposes, a centralized trusted server will be used initially.
 
 ### Relayer
 
-Relayer REST server: 
+Relayer REST Server:
 
-- `/sign-near-transaction`
-  - Args: 
-    - receiver_id: account management contract address (RootDerivationContract)
+- `/sign-near-transaction` endpoint
+  - Parameters:
+    - receiver_id: Account management contract address (RootDerivationContract)
     - execute_args: ExecuteArgs
-  - Build Near Transaction, sign sponsoring the gas, call RPC
+  - Actions:
+    - Builds NEAR transaction
+    - Signs transaction and sponsors gas fees
+    - Submits transaction to RPC node
 
-Enables blockchain transactions without wallet
+This relayer enables users to submit blockchain transactions without a wallet.
 
 ### OIDC Server (Optional)
 
-Currently we are not sure if the token generated on Client Side it's 100% authentic, so we will introduce this server to use the Client Secret to request the token. 
+Since we cannot guarantee that tokens generated on the client side are 100% authentic, we will introduce this server to use the Client Secret when requesting tokens.
 
-Obs: 
-- User still able to call the contract without the server, using OIDC token generation on client flow
-- If we come to the conclusion that the Client Token it's authentic and valid we can remove this server
+Notes:
+- Users can still call the contract without the server by using client-side OIDC token generation
+- If we determine that client-generated tokens are authentic and valid, we can remove this server
 
 ### ChainSignatures Contract
 
