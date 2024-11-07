@@ -129,12 +129,19 @@ class AbstractAccountContract {
     // 1. If authContract result === true, execute the actions on transaction.actions
   }
 
-  // Methods that can be called by execute
+  /**
+   * @public
+   * @call
+   */
+  async addAccount(accountId: string, authPath: AuthPath): Promise<void>{}
+
+  // Methods that can be called by executeCallback
   private async addAuthPath(authPath: AuthPath): Promise<void> {}
   private async removeAuthPath(authPath: AuthPath): Promise<void> {}
   private async callChainSig(authTarget: AuthPath, actions: Action[]): Promise<void> {
     // Call ChainSig contract using authTarget as the path
   }
+  private async deleteAccount(accountId: string): Promise<void> {}
 
   /**
    * Expensive method as it requires iterating over the account map to find the AuthPath, but should be called rarely since users can provide the accountId for a constant time query
