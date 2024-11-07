@@ -87,22 +87,28 @@ struct Action {
   })
 }
 
-struct Message {
+// TODO: Decide if message signed will be the following object or the hash of the
+struct Transaction {
   nonce: u64,
   actions: Vec<Action> 
 }
 
 impl RootDerivationContract {
   #[public call]
-  pub execute(&mut self, message: String, signature: String, auth_path: AuthPath, auth_target: AuthPath) {
-    // 1. Find account based on auth_path
-    // 2. Validate account nonce
-    // 3. Validate if auth_target exist on account
-    // 3. Validate if message => signature using provided auth_path (cross-contract call to corresponding auth_contract)
-    // 4. Call auth_callback with auth_contract result
+  pub execute(&mut self, message: String, signature: String, transaction: Transaction, auth_path: AuthPath, auth_target: AuthPath) {
+    /**
+    1. Find account based on auth_path
+    2. Validate account nonce
+    3. Validate if auth_target exist on account
+    4. Validate if message contains the hash of the transaction
+      - Even though this logic it's method specific it should not be done on the auth_contract because the auth_contract should only validate the signature and not security details of our abstract account
+    5. Validate if message => signature using provided auth_path (cross-contract call to corresponding auth_contract)
+    6. Call auth_callback with auth_contract result
+    **/
   }
+
   pub execute_callback(&self) {
-    // 1. If auth_contract result === true, execute each action on message.actions otherwise throw
+    // 1. If auth_contract result === true, execute the actions on transaction.actions
   } // Execute transaction
 
   // Methods that can be called by execute
@@ -112,7 +118,7 @@ impl RootDerivationContract {
   pub remove_auth_path(&mut self, auth_path: AuthPath) {}
   #[private]
   pub call_chain_sig(&mut self, auth_target: AuthPath, actions: Vec<Actions>) {
-    // 1. Call ChainSig contract using auth_target as the path
+    // Call ChainSig contract using auth_target as the path
   }
 
   #[public view]
@@ -125,9 +131,44 @@ impl RootDerivationContract {
 
 ### AuthContracts
 
+Those are individual contract for each type of authentication we want to support for the accounts. This includes
+
+#### OIDC Auth Contract
+
+```typescript
+interface OIDCToken {
+  issuer: string;
+  clientId: string;
+  email: string;
+}
+
+type Provider = 'google' | 'facebook' | 'apple'
+
+class OIDCAuthContract {
+  auth(token: OIDCToken, tokenSignature: string, provider: Provider): boolean {
+    // 1. Fetches the public key of the provider from the oracle contract
+    // 2. Validate if the token was signed by the providerPublicKey
+    // 3. Return the result
+  }
+}
+```
+
+#### WebAuthn Auth Contract
+
+```typescript
+class WebAuthnAuthContract {
+  auth(message: String, signature: String, publicKey: String): boolean {}
+}
+
+```
+
+#### Ethereum Auth Contract
+#### Solana Auth Contract
+
 
 ### Oracle Contracts
 
+Those contracts are necessary to fetch and store the current OIDC provider public key as they are rotated frequently
 
 ### Relayer
 
@@ -164,5 +205,6 @@ sign(args: {
 ## Issues
 
 - It's an account system inside Near, so it interacting with other contracts that uses predecessor_id won't be natural as the predecessor_id will always be the RootDerivationContract Id and not the AccountId. 
-  - The solution it's control a Near account using ChainSig contract (more expensive/slower than native account because requires a call to ChainSig)
+  - The solution it's control a Near account using ChainSig contract (slower than native account because requires a call to ChainSig)
+    - More expensive it's relative because if we deploy one AA Smart Contract for each account it cost 1N/100kB (stateless basic contract cost 2N, see (WebAuthn Contract)[https://testnet.nearblocks.io/address/felipe-webauthn.testnet], it means the user has to performs around 4000 ChaiSig to make the cost even)
 - The APIs to talk with this contract are different from using a native account on Near
