@@ -310,6 +310,11 @@ sign(args: {
 
 [Miro Board](https://miro.com/welcomeonboard/MndKNlAwcFFJWTVDcm5KaVY3VVo1VUdieGNHZzZRNkxDUElMTFJ5d0hrb3JncEY1bGhIMlAzTHZPN1ZlUGF6RHwzMDc0NDU3MzQ1ODc5NjY0NDc0fDI=?share_link_id=667879638731)
 
-![Screenshot 2024-11-07 at 22 49 50](https://github.com/user-attachments/assets/a9d673d4-9db3-4728-8d65-ada1f7276b10)
-![Screenshot 2024-11-07 at 22 49 10](https://github.com/user-attachments/assets/f486fd72-8102-40da-b2ea-9531f2a61fea)
+### OIDC Auth Flow
 ![Screenshot 2024-11-07 at 22 49 00](https://github.com/user-attachments/assets/40b70aef-c463-45ff-a609-f7ca1fc73185)
+
+### Wallet/Passkey Auth Flow
+![Screenshot 2024-11-07 at 22 49 10](https://github.com/user-attachments/assets/f486fd72-8102-40da-b2ea-9531f2a61fea)
+
+### Control Near Account Flow
+![Screenshot 2024-11-07 at 22 49 50](https://github.com/user-attachments/assets/a9d673d4-9db3-4728-8d65-ada1f7276b10)
