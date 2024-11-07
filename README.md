@@ -18,8 +18,8 @@ This is an experimental repository that creates a MultiChain Abstract Account us
 - [OIDC Token](#oidc-auth-contract) (Google, Facebook, Apple)
 - [Passkeys](#webauthn-auth-contract)
 - [Wallets](#ethereum-auth-contract) (EVM, Solana, Near)
-- [Near Account](#rootderivationcontract)
-- [Phone Number](#phone-recovery)
+- [Near Account]
+- [Phone Number]
 
 ## Master Recovery
 
@@ -45,7 +45,7 @@ Email recovery provides a permissionless backup authentication method. This prev
 
 ## Infrastructure
 
-### RootDerivationContract
+### AbstractAccountContract
 
 This is the EntryPoint contract that manages account storage and key control. It serves as the main interface for account operations, including authentication method management and transaction execution. Below is the proposed interface specification:
 
@@ -75,7 +75,7 @@ interface Account {
 }
 
 // Should implement the Storage Management NEP (https://nomicon.io/Standards/StorageManagement)
-interface RootDerivationContract {
+interface AbstractAccountContract {
   accounts: Map<string, Account>; // AccountId => Account
   authContracts: Map<string, AccountId> // AuthMethodId => AuthMethodContractAddress
 }
@@ -105,7 +105,7 @@ interface ExecuteArgs {
   authTarget: AuthPath
 }
 
-class RootDerivationContract {
+class AbstractAccountContract {
   /**
    * @public
    * @call
@@ -185,7 +185,7 @@ console.log(derivedPath) // "google,l2109ufdshf8sdhjf,test@gmail.com"
 
 Stateless contracts used to validate each type of [Auth Method](#auth-methods).
 
-Reasons to deploy them as individual contracts rather than implementing them inside the RootDerivationContract:
+Reasons to deploy them as individual contracts rather than implementing them inside the AbstractAccountContract:
 
 - Reusable across other NEAR contracts
 - Independently upgradeable
@@ -258,7 +258,7 @@ Relayer REST Server:
 
 - `/sign-near-transaction` endpoint
   - Parameters:
-    - receiver_id: Account management contract address (RootDerivationContract)
+    - receiver_id: Account management contract address (AbstractAccountContract)
     - execute_args: ExecuteArgs
   - Actions:
     - Builds NEAR transaction
@@ -299,8 +299,9 @@ sign(args: {
 
 ## Issues
 
-- Since this is an account system within NEAR, interactions with contracts that rely on `predecessor_id` will be less intuitive, as the `predecessor_id` will always be the RootDerivationContract ID rather than the actual AccountId.
+- Since this is an account system within NEAR, interactions with contracts that rely on `predecessor_id` will be less intuitive, as the `predecessor_id` will always be the AbstractAccountContract ID rather than the actual AccountId.
   - This can be addressed by controlling a NEAR account through the ChainSig contract, though this adds some latency due to the extra contract call
     - The cost implications are relative - deploying one AA Smart Contract per account costs 1N/100kB (compared to 2N for a basic stateless contract like the [WebAuthn Contract](https://testnet.nearblocks.io/address/felipe-webauthn.testnet)). A user would need to make approximately 4000 ChainSig calls before the costs equalize.
     - To avoid the latency and extra costs, users can grant dApps a FunctionCall access key to the Near controlled account
 - The contract APIs differ from those used with native NEAR accounts, requiring adaptation
+  - Build a wallet interface following the wallet-selector standards
