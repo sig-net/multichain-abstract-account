@@ -51,8 +51,9 @@ This is the EntryPoint contract that manages account storage and key control. It
 
 ```typescript
 interface OIDC {
-  issuer: string;
+  // The client ID must be included to prevent malicious dApps from taking control of a user's account. Each dApp has its own account that can be merged with other dApp accounts with user authorization
   clientId: string;
+  issuer: string;
   email: string;
 }
 
@@ -301,4 +302,5 @@ sign(args: {
 - Since this is an account system within NEAR, interactions with contracts that rely on `predecessor_id` will be less intuitive, as the `predecessor_id` will always be the RootDerivationContract ID rather than the actual AccountId.
   - This can be addressed by controlling a NEAR account through the ChainSig contract, though this adds some latency due to the extra contract call
     - The cost implications are relative - deploying one AA Smart Contract per account costs 1N/100kB (compared to 2N for a basic stateless contract like the [WebAuthn Contract](https://testnet.nearblocks.io/address/felipe-webauthn.testnet)). A user would need to make approximately 4000 ChainSig calls before the costs equalize.
+    - To avoid the latency and extra costs, users can grant dApps a FunctionCall access key to the Near controlled account
 - The contract APIs differ from those used with native NEAR accounts, requiring adaptation
