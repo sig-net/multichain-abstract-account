@@ -63,14 +63,14 @@ interface WebAuthn {
 }
 
 // Can be extended to support more auth methods
-type AuthPath = 
+type AuthIdentity = 
   | { type: "PubKey", value: string } // Wallet authentication
   | { type: "WebAuthn", value: WebAuthn } // Passkey authentication 
   | { type: "OIDC", value: OIDC } // Social authentication (e.g: Google, Facebook, Apple)
   | { type: "Account", value: string }; // Near Account authentication
 
 interface Account {
-  authPaths: AuthPath[];
+  authIdentities: AuthIdentity[];
   nonce: number;
 }
 
@@ -81,8 +81,8 @@ interface AbstractAccountContract {
 }
 
 type Action = 
-  | { type: "AddKey", authPath: AuthPath }
-  | { type: "RemoveKey", authPath: AuthPath }
+  | { type: "AddKey", authIdentity: AuthIdentity }
+  | { type: "RemoveKey", authIdentity: AuthIdentity }
   | { 
       type: "CallChainSig", 
       args: {
@@ -101,8 +101,8 @@ interface ExecuteArgs {
   message: string,
   messageSignature: string, 
   transaction: Transaction, 
-  authPath: AuthPath, 
-  authTarget: AuthPath
+  authIdentity: AuthIdentity, 
+  authTarget: AuthIdentity
 }
 
 class AbstractAccountContract {
@@ -112,7 +112,7 @@ class AbstractAccountContract {
    */
   async execute(executeArgs: ExecuteArgs): Promise<void> {
     /**
-     * 1. Find account based on authPath
+     * 1. Find account based on authIdentity
      * 2. Validate that account.nonce matches transaction.nonce
      * 3. Validate that authTarget exists on the account
      * 4. Validate that message contains the transaction hash
@@ -120,7 +120,7 @@ class AbstractAccountContract {
      *     since authContract should only validate signatures, not security details of our abstract account
      *   - The message must contain the transaction hash to prevent replay attacks (via nonce) and ensure
      *     that messages can only be used for their intended purpose
-     * 5. Validate messageSignature using provided authPath (cross-contract call to corresponding authContract)
+     * 5. Validate messageSignature using provided authIdentity (cross-contract call to corresponding authContract)
      * 6. Call executeCallback with authContract result
      */
   }
@@ -133,23 +133,23 @@ class AbstractAccountContract {
    * @public
    * @call
    */
-  async addAccount(accountId: string, authPath: AuthPath): Promise<void>{}
+  async addAccount(accountId: string, authIdentity: AuthIdentity): Promise<void>{}
 
   // Methods that can be called by executeCallback
-  private async addAuthPath(authPath: AuthPath): Promise<void> {}
-  private async removeAuthPath(authPath: AuthPath): Promise<void> {}
-  private async callChainSig(authTarget: AuthPath, actions: Action[]): Promise<void> {
+  private async addAuthIdentity(authIdentity: AuthIdentity): Promise<void> {}
+  private async removeAuthIdentity(authIdentity: AuthIdentity): Promise<void> {}
+  private async callChainSig(authTarget: AuthIdentity, actions: Action[]): Promise<void> {
     // Call ChainSig contract using authTarget as the path
   }
   private async deleteAccount(accountId: string): Promise<void> {}
 
   /**
-   * Expensive method as it requires iterating over the account map to find the AuthPath, but should be called rarely since users can provide the accountId for a constant time query
+   * Expensive method as it requires iterating over the account map to find the AuthIdentity, but should be called rarely since users can provide the accountId for a constant time query
    * 
    * @public
    * @view
    */
-  findAccountByAuthPath(authPath: AuthPath): Account | null {}
+  findAccountByAuthIdentity(authIdentity: AuthIdentity): Account | null {}
 
   /**
    * @public
@@ -161,16 +161,16 @@ class AbstractAccountContract {
    * @public
    * @view
    */
-  deriveKeyFromPath(authPath: AuthPath): string {}
+  deriveKeyFromPath(authIdentity: AuthIdentity): string {}
 }
 ```
 
-#### Auth Paths
+#### Auth Identity
 
-Auth Paths act as public keys that are used to authenticate transactions and derive account paths. For example:
+Auth Identity act as identities that are authorized to execute transactions and derive account paths. For example:
 
 ```typescript
-const authPath: AuthPath = {
+const authIdentity: AuthIdentity = {
   type: "OIDC", 
   value: {
     issuer: "google", 
@@ -180,11 +180,11 @@ const authPath: AuthPath = {
 }
 
 const account = contract.findAccountByAccountId('test@gmail.com')
-if (!account.authPaths.includes(authPath)) {
-  throw new Error(`authPath: ${JSON.stringify(authPath)} is not authorized on this account`) 
+if (!account.authIdentities.includes(authIdentity)) {
+  throw new Error(`authIdentity: ${JSON.stringify(authIdentity)} is not authorized on this account`) 
 }
 
-const derivedPath = contract.deriveKeyFromPath(authPath)
+const derivedPath = contract.deriveKeyFromPath(authIdentity)
 console.log(derivedPath) // "google,l2109ufdshf8sdhjf,test@gmail.com"
 ```
 
