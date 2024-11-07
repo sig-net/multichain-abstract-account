@@ -310,5 +310,6 @@ sign(args: {
 
 [Miro Board](https://miro.com/welcomeonboard/MndKNlAwcFFJWTVDcm5KaVY3VVo1VUdieGNHZzZRNkxDUElMTFJ5d0hrb3JncEY1bGhIMlAzTHZPN1ZlUGF6RHwzMDc0NDU3MzQ1ODc5NjY0NDc0fDI=?share_link_id=667879638731)
 
-![Screenshot 2024-11-07 at 22 35 42](https://github.com/user-attachments/assets/10e8aaae-cd69-49d5-a545-509c5e5e8e23)
-![Screenshot 2024-11-07 at 22 35 38](https://github.com/user-attachments/assets/72f20c92-b921-4e1a-9482-f5b76d8a7d47)
+![Screenshot 2024-11-07 at 22 46 01](https://github.com/user-attachments/assets/203b83ea-63d8-4723-82b4-f895ec2bc041)
+![Screenshot 2024-11-07 at 22 45 49](https://github.com/user-attachments/assets/ac697219-a9d3-40fb-b743-e311164a080e)
+![Screenshot 2024-11-07 at 22 45 43](https://github.com/user-attachments/assets/334691fc-35bb-4056-a017-cd603df48391)
