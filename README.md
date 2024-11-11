@@ -274,13 +274,23 @@ Relayer REST Server:
 
 This relayer enables users to submit blockchain transactions without a wallet.
 
-### OIDC Server (Optional)
+### OIDC Zero-Knowledge Proof Server
 
-Since we cannot guarantee that tokens generated on the client side are 100% authentic, we will introduce this server to use the Client Secret when requesting tokens.
+To enhance user privacy, we plan to implement a zero-knowledge proof server that verifies OIDC token authenticity without exposing the full token on-chain.
 
-Notes:
-- Users can still call the contract without the server by using client-side OIDC token generation
-- If we determine that client-generated tokens are authentic and valid, we can remove this server
+Proposed Zero-Knowledge Proof Interface:
+
+Public Inputs:
+- OIDC Provider's Public Key
+- User's Email Address
+
+Private Inputs:
+- Complete OIDC Token
+
+Public Outputs:
+- Boolean value indicating token authenticity
+
+Using this interface, we can verify email ownership without exposing the complete OIDC token on-chain.
 
 ### ChainSignatures Contract
 
@@ -303,6 +313,11 @@ sign(args: {
   path: string
 }): Signature
 ```
+
+## Notes on OIDC Token
+
+- Client-side flow is possible and secure using PKCE (Proof Key for Code Exchange) as defined in [RFC 7636](https://datatracker.ietf.org/doc/html/rfc7636)
+- According to OIDC standards, the OIDC token can optionally include a nonce provided by the client. By using the transaction hash as this nonce, we ensure the OIDC token can only be used for its intended transaction, thus preventing replay attacks
 
 ## Issues
 
