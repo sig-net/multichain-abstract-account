@@ -316,8 +316,13 @@ sign(args: {
 
 ## Notes on OIDC Token
 
-- Client-side flow is possible and secure using PKCE (Proof Key for Code Exchange) as defined in [RFC 7636](https://datatracker.ietf.org/doc/html/rfc7636)
+- A secure client-side-only flow is possible using PKCE (Proof Key for Code Exchange) as defined in [RFC 7636](https://datatracker.ietf.org/doc/html/rfc7636)
 - According to OIDC standards, the OIDC token can optionally include a nonce provided by the client. By using the transaction hash as this nonce, we ensure the OIDC token can only be used for its intended transaction, thus preventing replay attacks
+
+This implementation ensures the OIDC token can be safely exposed on-chain or pre-processed by the OIDC token ZK server, since the token is cryptographically bound to a specific transaction and cannot be reused for other purposes. Security can be further enhanced by:
+
+1. Limiting the token's scope and permissions to only allow viewing basic user information
+2. Revoking the token before submitting it to the blockchain
 
 ## Issues
 
