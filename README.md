@@ -292,6 +292,13 @@ Public Outputs:
 
 Using this interface, we can verify email ownership without exposing the complete OIDC token on-chain.
 
+#### Why Do We Need a Dedicated ZK Proof Server?
+
+- OIDC providers like Google and Facebook use RSA (RS256) signatures
+- RSA operations are computationally expensive to prove in zero-knowledge
+- Browser-based proof generation would be impractically slow
+- TODO: Investigate whether Apple, Twitter, and GitHub's signature schemes are suitable for generating zero-knowledge proofs on the client side
+
 ### ChainSignatures Contract
 
 View [ChainSignatures MPC](https://github.com/near/mpc)
